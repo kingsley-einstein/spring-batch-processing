@@ -1,9 +1,13 @@
 package com.javaprodigy.batch.config;
 
 import com.javaprodigy.batch.entities.EmployeeEntity;
+import javax.sql.DataSource;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider;
+import org.springframework.batch.item.database.JdbcBatchItemWriter;
+import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.LineMapper;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
@@ -47,13 +51,35 @@ public class BatchConfig {
   public LineMapper<EmployeeEntity> lineMapper() {
     final DefaultLineMapper<EmployeeEntity> defaultLineMapper = new DefaultLineMapper<>();
     final DelimitedLineTokenizer delimitedLineTokenizer = new DelimitedLineTokenizer();
+    final EmployeeEntityFieldSetMapper employeeEntityFieldSetMapper = new EmployeeEntityFieldSetMapper();
 
     delimitedLineTokenizer.setDelimiter(";");
     delimitedLineTokenizer.setStrict(false);
     delimitedLineTokenizer.setNames(new String[] { "id", "name", "salary" });
 
     defaultLineMapper.setLineTokenizer(delimitedLineTokenizer);
+    defaultLineMapper.setFieldSetMapper(employeeEntityFieldSetMapper);
 
     return defaultLineMapper;
+  }
+
+  @Bean
+  public EmployeeEntityProcessor processor() {
+    return new EmployeeEntityProcessor();
+  }
+
+  @Bean
+  public JdbcBatchItemWriter<EmployeeEntity> itemWriter(
+    final DataSource dataSource
+  ) {
+    return new JdbcBatchItemWriterBuilder<EmployeeEntity>()
+      .itemSqlParameterSourceProvider(
+        new BeanPropertyItemSqlParameterSourceProvider<>()
+      )
+      .sql(
+        "INSERT INTO employees (id, name, salary) VALUES (:id, :name, :salary)"
+      )
+      .dataSource(dataSource)
+      .build();
   }
 }
