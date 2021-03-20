@@ -1,10 +1,14 @@
 package com.javaprodigy.batch.config;
 
 import com.javaprodigy.batch.entities.EmployeeEntity;
+import javax.management.NotificationListener;
 import javax.sql.DataSource;
+import org.springframework.batch.core.Job;
+import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider;
 import org.springframework.batch.item.database.JdbcBatchItemWriter;
 import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
@@ -80,6 +84,28 @@ public class BatchConfig {
         "INSERT INTO employees (id, name, salary) VALUES (:id, :name, :salary)"
       )
       .dataSource(dataSource)
+      .build();
+  }
+
+  @Bean
+  public Step step1(JdbcBatchItemWriter<EmployeeEntity> writer) {
+    return stepBuilderFactory
+      .get("step1")
+      .<EmployeeEntity, EmployeeEntity>chunk(10)
+      .reader(reader())
+      .processor(processor())
+      .writer(writer)
+      .build();
+  }
+
+  @Bean
+  public Job employeeEntityJob(NotificationListener listener, Step step1) {
+    return jobBuilderFactory
+      .get("employeeEntityJob")
+      .incrementer(new RunIdIncrementer())
+      .listener(listener)
+      .flow(step1)
+      .end()
       .build();
   }
 }
